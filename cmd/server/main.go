@@ -58,10 +58,15 @@ func main() {
 				}
 			}
 
+		case "help":
+			{
+				gamelogic.PrintServerHelp()
+			}
+
 		case "quit":
 			{
 				fmt.Println("Shutting down server...")
-				return
+				break
 			}
 
 		default:

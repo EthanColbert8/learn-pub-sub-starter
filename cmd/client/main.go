@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
 	"github.com/EthanColbert8/pub-sub-peril/internal/gamelogic"
 	"github.com/EthanColbert8/pub-sub-peril/internal/pubsub"
@@ -43,14 +41,59 @@ func main() {
 
 	fmt.Printf("Successfully created queue: %s\n", amqpQueue.Name)
 
-	/************************************************
-	 * Just wait for an interrupt signal to shut down
-	 */
+	gameState := gamelogic.NewGameState(userName)
 
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, os.Interrupt)
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
 
-	// blocks the main thread until an interrupt
-	<-signalChannel
-	fmt.Println("\nShutdown signal received, closing client.")
+		switch words[0] {
+		case "spawn":
+			{
+				err := gameState.CommandSpawn(words)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+			}
+
+		case "move":
+			{
+				move, err := gameState.CommandMove(words)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				fmt.Printf("%d units moved to %s\n", len(move.Units), move.ToLocation)
+			}
+
+		case "status":
+			{
+				gameState.CommandStatus()
+			}
+
+		case "help":
+			{
+				gamelogic.PrintClientHelp()
+			}
+
+		case "spam":
+			{
+				fmt.Println("Spamming is not allowed yet!")
+			}
+
+		case "quit":
+			{
+				gamelogic.PrintQuit()
+				break
+			}
+
+		default:
+			{
+				fmt.Printf("Unknown command: %s\n", words[0])
+			}
+		}
+	}
 }
