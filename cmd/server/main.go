@@ -66,7 +66,7 @@ func main() {
 		case "quit":
 			{
 				fmt.Println("Shutting down server...")
-				break
+				return
 			}
 
 		default:

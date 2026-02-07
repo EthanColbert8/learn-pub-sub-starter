@@ -61,12 +61,12 @@ func main() {
 
 		case "move":
 			{
-				move, err := gameState.CommandMove(words)
+				_, err := gameState.CommandMove(words)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
-				fmt.Printf("%d units moved to %s\n", len(move.Units), move.ToLocation)
+				//fmt.Printf("%d units moved to %s\n", len(move.Units), move.ToLocation)
 			}
 
 		case "status":
@@ -81,13 +81,13 @@ func main() {
 
 		case "spam":
 			{
-				fmt.Println("Spamming is not allowed yet!")
+				fmt.Println("Spamming not allowed yet!")
 			}
 
 		case "quit":
 			{
 				gamelogic.PrintQuit()
-				break
+				return
 			}
 
 		default:
