@@ -1,4 +1,7 @@
 *.log
 
 client
+!client/
+
 server
+!server/

@@ -26,22 +26,34 @@ func main() {
 		return
 	}
 
-	amqpChannel, amqpQueue, err := pubsub.DeclareAndBind(
+	gameState := gamelogic.NewGameState(userName)
+
+	// amqpChannel, amqpQueue, err := pubsub.DeclareAndBind(
+	// 	connection,
+	// 	routing.ExchangePerilDirect,
+	// 	fmt.Sprintf("%s.%s", routing.PauseKey, userName),
+	// 	routing.PauseKey,
+	// 	pubsub.TRANSIENT,
+	// )
+	// if err != nil {
+	// 	fmt.Printf("Failed to declare and bind queue: %v\n", err)
+	// 	return
+	// }
+	// defer amqpChannel.Close()
+	err = pubsub.SubscribeJSON(
 		connection,
 		routing.ExchangePerilDirect,
 		fmt.Sprintf("%s.%s", routing.PauseKey, userName),
 		routing.PauseKey,
 		pubsub.TRANSIENT,
+		handlerPause(gameState),
 	)
 	if err != nil {
-		fmt.Printf("Failed to declare and bind queue: %v\n", err)
+		fmt.Printf("Failed to subscribe to queue: %v\n", err)
 		return
 	}
-	defer amqpChannel.Close()
 
-	fmt.Printf("Successfully created queue: %s\n", amqpQueue.Name)
-
-	gameState := gamelogic.NewGameState(userName)
+	//fmt.Printf("Successfully created queue: %s\n", amqpQueue.Name)
 
 	for {
 		words := gamelogic.GetInput()
@@ -66,7 +78,6 @@ func main() {
 					fmt.Println(err)
 					continue
 				}
-				//fmt.Printf("%d units moved to %s\n", len(move.Units), move.ToLocation)
 			}
 
 		case "status":
