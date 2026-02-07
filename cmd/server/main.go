@@ -20,9 +20,23 @@ func main() {
 
 	fmt.Println("Message broker connection established! Starting Peril server...")
 
-	amqpChannel, err := connection.Channel()
+	// amqpChannel, err := connection.Channel()
+	// if err != nil {
+	// 	fmt.Printf("Failed to open a channel: %v\n", err)
+	// 	return
+	// }
+	// defer amqpChannel.Close()
+
+	// amqpChannel, amqpQueue, err := pubsub.DeclareAndBind(
+	amqpChannel, _, err := pubsub.DeclareAndBind(
+		connection,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
+		pubsub.DURABLE,
+	)
 	if err != nil {
-		fmt.Printf("Failed to open a channel: %v\n", err)
+		fmt.Printf("Failed to declare and bind queue: %v\n", err)
 		return
 	}
 	defer amqpChannel.Close()
