@@ -42,16 +42,17 @@ func DeclareAndBind(
 	return channel, queue, nil
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T)) error {
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T)) (*amqp.Channel, error) {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
-		return fmt.Errorf("failed to bind to queue: %w", err)
+		return nil, fmt.Errorf("failed to bind to queue: %w", err)
 	}
 	// defer channel.Close()
 
 	queueChannel, err := channel.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
-		return fmt.Errorf("failed to consume from queue: %w", err)
+		channel.Close()
+		return nil, fmt.Errorf("failed to consume from queue: %w", err)
 	}
 
 	go func(qch <-chan amqp.Delivery) {
@@ -75,5 +76,5 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 		}
 	}(queueChannel)
 
-	return nil
+	return channel, nil
 }

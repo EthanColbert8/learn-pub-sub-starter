@@ -40,7 +40,7 @@ func main() {
 	// 	return
 	// }
 	// defer amqpChannel.Close()
-	err = pubsub.SubscribeJSON(
+	directChannel, err := pubsub.SubscribeJSON(
 		connection,
 		routing.ExchangePerilDirect,
 		fmt.Sprintf("%s.%s", routing.PauseKey, userName),
@@ -52,6 +52,21 @@ func main() {
 		fmt.Printf("Failed to subscribe to queue: %v\n", err)
 		return
 	}
+	defer directChannel.Close()
+
+	topicChannel, err := pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, userName),
+		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
+		pubsub.TRANSIENT,
+		handlerArmyMoves(gameState),
+	)
+	if err != nil {
+		fmt.Printf("Failed to subscribe to queue: %v\n", err)
+		return
+	}
+	defer topicChannel.Close()
 
 	//fmt.Printf("Successfully created queue: %s\n", amqpQueue.Name)
 
@@ -73,11 +88,18 @@ func main() {
 
 		case "move":
 			{
-				_, err := gameState.CommandMove(words)
+				move, err := gameState.CommandMove(words)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
+
+				err = pubsub.PublishJSON(topicChannel, routing.ExchangePerilTopic, fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, move.Player.Username), move)
+				if err != nil {
+					fmt.Printf("Failed to publish army move: %v\n", err) // Should we do something else here?
+					continue
+				}
+				fmt.Println("Published move successfully.")
 			}
 
 		case "status":
