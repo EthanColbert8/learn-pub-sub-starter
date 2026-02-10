@@ -35,7 +35,10 @@ func DeclareAndBind(
 	// Since we only have transient and durable, we don'y need to worry about other types
 	isTransient := queueType == TRANSIENT
 
-	queue, err := channel.QueueDeclare(queueName, !isTransient, isTransient, isTransient, false, nil)
+	queueTable := make(amqp.Table)
+	queueTable["x-dead-letter-exchange"] = "peril_dlx" // dead letter exchange name
+
+	queue, err := channel.QueueDeclare(queueName, !isTransient, isTransient, isTransient, false, queueTable)
 	if err != nil {
 		channel.Close()
 		return nil, amqp.Queue{}, fmt.Errorf("failed to declare queue: %w", err)
