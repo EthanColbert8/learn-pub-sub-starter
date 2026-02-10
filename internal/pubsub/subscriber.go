@@ -7,11 +7,19 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type SimpleQueueType string
+type SimpleQueueType int
 
 const (
-	DURABLE   = SimpleQueueType("durable")
-	TRANSIENT = SimpleQueueType("transient")
+	DURABLE   = SimpleQueueType(0)
+	TRANSIENT = SimpleQueueType(1)
+)
+
+type AckType int
+
+const (
+	ACK          = AckType(0)
+	NACK_REQUEUE = AckType(1)
+	NACK_DISCARD = AckType(2)
 )
 
 func DeclareAndBind(
@@ -42,12 +50,11 @@ func DeclareAndBind(
 	return channel, queue, nil
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T)) (*amqp.Channel, error) {
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T) AckType) (*amqp.Channel, error) {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to queue: %w", err)
 	}
-	// defer channel.Close()
 
 	queueChannel, err := channel.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
@@ -67,12 +74,23 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 				}
 			}
 
-			handler(data)
+			response := handler(data)
 
-			err = msg.Ack(false)
+			switch response {
+			case ACK:
+				err = msg.Ack(false)
+				fmt.Println("\nAcknowledging message")
+			case NACK_REQUEUE:
+				err = msg.Nack(false, true)
+				fmt.Println("\nNacking message, requeueing")
+			case NACK_DISCARD:
+				err = msg.Nack(false, false)
+				fmt.Println("\nNacking message, discarding")
+			}
 			if err != nil {
 				fmt.Printf("message acknowledgement failed: %v\n", err)
 			}
+			fmt.Print("> ")
 		}
 	}(queueChannel)
 
