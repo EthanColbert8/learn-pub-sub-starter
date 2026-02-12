@@ -18,7 +18,15 @@ func main() {
 	}
 	defer connection.Close()
 
-	fmt.Println("Message broker connection established! Starting Peril server...")
+	// A single channel to publish all messages to the broker.
+	publishChannel, err := connection.Channel()
+	if err != nil {
+		fmt.Printf("Failed to open channel: %v\n", err)
+		return
+	}
+	defer publishChannel.Close()
+
+	fmt.Println("Message broker connection established! Starting Peril client...")
 
 	userName, err := gamelogic.ClientWelcome()
 	if err != nil {
@@ -28,18 +36,7 @@ func main() {
 
 	gameState := gamelogic.NewGameState(userName)
 
-	// amqpChannel, amqpQueue, err := pubsub.DeclareAndBind(
-	// 	connection,
-	// 	routing.ExchangePerilDirect,
-	// 	fmt.Sprintf("%s.%s", routing.PauseKey, userName),
-	// 	routing.PauseKey,
-	// 	pubsub.TRANSIENT,
-	// )
-	// if err != nil {
-	// 	fmt.Printf("Failed to declare and bind queue: %v\n", err)
-	// 	return
-	// }
-	// defer amqpChannel.Close()
+	// Subscribing to queues on direct and topic exchanges
 	directChannel, err := pubsub.SubscribeJSON(
 		connection,
 		routing.ExchangePerilDirect,
@@ -60,7 +57,7 @@ func main() {
 		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, userName),
 		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
 		pubsub.TRANSIENT,
-		handlerArmyMoves(gameState),
+		handlerArmyMoves(gameState, publishChannel),
 	)
 	if err != nil {
 		fmt.Printf("Failed to subscribe to queue: %v\n", err)
@@ -68,7 +65,19 @@ func main() {
 	}
 	defer topicChannel.Close()
 
-	//fmt.Printf("Successfully created queue: %s\n", amqpQueue.Name)
+	warChannel, err := pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		"war",
+		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
+		pubsub.DURABLE,
+		handlerWarRecognitions(gameState),
+	)
+	if err != nil {
+		fmt.Printf("Failed to subscribe to queue: %v\n", err)
+		return
+	}
+	defer warChannel.Close()
 
 	for {
 		words := gamelogic.GetInput()
@@ -94,7 +103,7 @@ func main() {
 					continue
 				}
 
-				err = pubsub.PublishJSON(topicChannel, routing.ExchangePerilTopic, fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, move.Player.Username), move)
+				err = pubsub.PublishJSON(publishChannel, routing.ExchangePerilTopic, fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, move.Player.Username), move)
 				if err != nil {
 					fmt.Printf("Failed to publish army move: %v\n", err) // Should we do something else here?
 					continue
