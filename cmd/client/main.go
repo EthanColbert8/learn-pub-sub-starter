@@ -71,7 +71,7 @@ func main() {
 		"war",
 		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
 		pubsub.DURABLE,
-		handlerWarRecognitions(gameState),
+		handlerWarRecognitions(gameState, publishChannel),
 	)
 	if err != nil {
 		fmt.Printf("Failed to subscribe to queue: %v\n", err)
