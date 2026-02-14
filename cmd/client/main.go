@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/EthanColbert8/pub-sub-peril/internal/gamelogic"
 	"github.com/EthanColbert8/pub-sub-peril/internal/pubsub"
@@ -123,7 +125,34 @@ func main() {
 
 		case "spam":
 			{
-				fmt.Println("Spamming not allowed yet!")
+				// fmt.Println("Spamming not allowed yet!")
+				if len(words) < 2 {
+					fmt.Println("Usage: spam <num>")
+					continue
+				}
+
+				numMessages, err := strconv.Atoi(words[1])
+				if err != nil {
+					fmt.Printf("Invalid number: %v\n", err)
+					continue
+				}
+				if numMessages < 1 {
+					fmt.Println("Number of messages must be at least 1.")
+					continue
+				}
+
+				for i := 0; i < numMessages; i++ {
+					badLog := routing.GameLog{
+						CurrentTime: time.Now(),
+						Message:     gamelogic.GetMaliciousLog(),
+						Username:    userName,
+					}
+
+					err = pubsub.PublishGob(publishChannel, routing.ExchangePerilTopic, fmt.Sprintf("%s.%s", routing.GameLogSlug, userName), badLog)
+					if err != nil {
+						fmt.Printf("Failed to publish malicious log: %v\n", err)
+					}
+				}
 			}
 
 		case "quit":

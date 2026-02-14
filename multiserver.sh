@@ -25,7 +25,8 @@ trap 'cleanup' SIGINT
 
 # Start the specified number of instances of the program in the background
 for (( i=0; i<num_instances; i++ )); do
-  go run ./cmd/server &
+  # go run ./cmd/server &
+  ./server &
   pids+=($!)
 done
 

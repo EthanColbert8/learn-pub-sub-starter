@@ -90,6 +90,8 @@ func subscribe[T any](
 		return nil, fmt.Errorf("failed to bind to queue: %w", err)
 	}
 
+	channel.Qos(10, 0, false)
+
 	queueChannel, err := channel.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		channel.Close()
