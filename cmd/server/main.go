@@ -18,28 +18,28 @@ func main() {
 	}
 	defer connection.Close()
 
+	publishChannel, err := connection.Channel()
+	if err != nil {
+		fmt.Printf("Failed to open channel: %v\n", err)
+		return
+	}
+	defer publishChannel.Close()
+
 	fmt.Println("Message broker connection established! Starting Peril server...")
 
-	// amqpChannel, err := connection.Channel()
-	// if err != nil {
-	// 	fmt.Printf("Failed to open a channel: %v\n", err)
-	// 	return
-	// }
-	// defer amqpChannel.Close()
-
-	// amqpChannel, amqpQueue, err := pubsub.DeclareAndBind(
-	amqpChannel, _, err := pubsub.DeclareAndBind(
+	gamelogsChannel, err := pubsub.SubscribeGob(
 		connection,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		fmt.Sprintf("%s.*", routing.GameLogSlug),
 		pubsub.DURABLE,
+		handlerGameLogs,
 	)
 	if err != nil {
-		fmt.Printf("Failed to declare and bind queue: %v\n", err)
+		fmt.Printf("Failed to subscribe to game logs: %v\n", err)
 		return
 	}
-	defer amqpChannel.Close()
+	defer gamelogsChannel.Close()
 
 	pausedState := routing.PlayingState{IsPaused: true}
 
@@ -56,7 +56,7 @@ func main() {
 			{
 				pausedState.IsPaused = true
 				fmt.Println("Pausing game...")
-				err = pubsub.PublishJSON(amqpChannel, routing.ExchangePerilDirect, routing.PauseKey, pausedState)
+				err = pubsub.PublishJSON(publishChannel, routing.ExchangePerilDirect, routing.PauseKey, pausedState)
 				if err != nil {
 					fmt.Printf("Failed to publish pause message: %v\n", err)
 				}
@@ -66,7 +66,7 @@ func main() {
 			{
 				pausedState.IsPaused = false
 				fmt.Println("Resuming game...")
-				err = pubsub.PublishJSON(amqpChannel, routing.ExchangePerilDirect, routing.PauseKey, pausedState)
+				err = pubsub.PublishJSON(publishChannel, routing.ExchangePerilDirect, routing.PauseKey, pausedState)
 				if err != nil {
 					fmt.Printf("Failed to publish resume message: %v\n", err)
 				}
